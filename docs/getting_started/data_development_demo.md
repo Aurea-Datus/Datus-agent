@@ -1,24 +1,26 @@
-# Data Development Demo
+# Data Development Project Manual
 
-This guide is a hands-on demo for building a data mart with Datus skills. It
-uses the `product_adoption` dataset, which models Pendo feature usage events
-for account-level product adoption analysis. The demo package includes a
-business requirements document under `docs/` for the target mart.
+This manual shows how to initialize a Datus data-development project from a
+business requirement and reference SQL, then develop, review, execute, and
+validate the requested mart. The sample package uses the `product_adoption`
+dataset, which models Pendo feature usage events for account-level product
+adoption analysis.
 
-## Tutorial Overview
+Use this page as an operating procedure: download the package, keep its project
+structure intact, start the local database, initialize project knowledge, create
+an implementation plan from the requirement, and complete the development
+workflow with the bundled Datus skills.
 
-This tutorial demonstrates an end-to-end data development workflow driven by Datus skills. You will start from raw Pendo data, initialize project knowledge from reference SQL, create an ETL implementation plan, review the generated SQL, execute the jobs, and reconcile the final mart against a trusted expected-result table.
+## Project Inputs
 
-The business scenario is product adoption analysis. Product, customer success, and growth teams need to understand how customer accounts use product features across applications. The target mart summarizes feature usage at the account and application level so downstream users can identify trial usage, regular usage, heavy adoption, and low-adoption accounts that may need enablement.
-
-The package includes two inputs for the workflow:
+The package contains two project inputs that drive the workflow:
 
 | Input | Purpose |
 |---|---|
-| `docs/pendo_product_adoption_summary_requirements.md` | Business requirements for the target product adoption summary mart. |
-| `ref_sql/` | Historical SQL references used to initialize project knowledge, extract lineage, and ground implementation decisions. |
+| `docs/pendo_product_adoption_summary_requirements.md` | The business requirement for the target product adoption summary mart. Use it as the source of truth for scope, grain, fields, metrics, segmentation rules, and acceptance criteria. |
+| `ref_sql/` | Historical SQL references. Use them to initialize project knowledge, extract lineage and reusable rules, and ground implementation decisions. |
 
-The main source data is Pendo feature interaction data:
+The source data is Pendo feature interaction data:
 
 | Source | Purpose |
 |---|---|
@@ -26,50 +28,28 @@ The main source data is Pendo feature interaction data:
 | `raw.feature_history` | Feature metadata used by reference SQL and project knowledge initialization. |
 | `raw.page_history` | Page metadata used by reference SQL and feature enrichment examples. |
 
-The implementation target for this tutorial is:
+The target table to develop is:
 
 ```text
 marts.pendo__product_adoption_summary
 ```
 
-The target mart grain is:
+The target grain is:
 
 ```text
 feature_id + account_id + app_id
 ```
 
-The mart calculates adoption metrics such as total users, sessions, events, minutes, active days, average usage per session, adoption level, and feature health score.
-
-The expected result table is already stored in DuckDB and loaded into PostgreSQL during initialization:
+The expected-result table is loaded with the sample data:
 
 ```text
 marts.pendo__product_adoption_summary_expected
 ```
 
-The goal is to produce `marts.pendo__product_adoption_summary` so that it reconciles exactly with the expected table.
+The project is complete when `marts.pendo__product_adoption_summary` reconciles
+with the expected-result table.
 
-Workflow summary:
-
-| Step | What You Do | Outcome |
-|---|---|---|
-| 1 | Start PostgreSQL | Local database is available. |
-| 2 | Load DuckDB data | `raw` source tables and the `marts` expected table are copied into PostgreSQL. |
-| 3 | Start Datus | Datus is ready with configured model and datasource. |
-| 4 | Run `project-set-up` | Project knowledge docs are generated from reference SQL. |
-| 5 | Run `etl-plan` | An implementation plan is created and approved. |
-| 6 | Run `sql-review` | Generated SQL is reviewed and corrected before execution. |
-| 7 | Run `execute-job` | Staging and mart jobs are executed. |
-| 8 | Run `data-compare` | Final mart is reconciled against the expected table. |
-
-Successful completion means:
-
-- `marts.pendo__product_adoption_summary` exists in PostgreSQL.
-- The mart has 24,995 rows.
-- All 13 output columns match `marts.pendo__product_adoption_summary_expected`.
-- The comparison passes at sub-1e-9 numeric tolerance.
-- No further SQL corrections are needed.
-
-## Step 0: Download the Demo Package
+## Package Layout
 
 Download the package: [product_adoption.zip](../assets/product_adoption.zip).
 
@@ -105,12 +85,23 @@ product_adoption/
     skills/
 ```
 
-The `docs/pendo_product_adoption_summary_requirements.md` file is the business
-requirement used by the planning step.
+## Workflow Overview
+
+| Step | Operation | Result |
+|---|---|---|
+| 1 | Start PostgreSQL | Local database is available. |
+| 2 | Load DuckDB data | `raw` source tables and `marts` expected-result table are copied into PostgreSQL. |
+| 3 | Start Datus | Datus is ready with a configured model and datasource. |
+| 4 | Initialize project knowledge | `project-set-up` generates reusable project documentation from `ref_sql/`. |
+| 5 | Create the implementation plan | `etl-plan` turns the requirement and project context into an approved plan. |
+| 6 | Implement after approval | Datus generates SQL jobs only after the plan is approved. |
+| 7 | Review generated SQL | `sql-review` checks the implementation against the plan and requirement. |
+| 8 | Execute jobs | `execute-job` creates the staging table and target mart. |
+| 9 | Validate results | `data-compare` reconciles the target mart with the expected-result table. |
 
 ## Step 1: Start PostgreSQL
 
-From the `product_adoption` directory, start PostgreSQL:
+From the extracted project directory, start PostgreSQL:
 
 ```bash
 cd product_adoption
@@ -128,9 +119,9 @@ PostgreSQL connection values:
 | Password | `pendo` |
 | Default schema | `raw` |
 
-## Step 2: Load DuckDB Data Into PostgreSQL
+## Step 2: Load Data
 
-Run the one-time migration:
+Run the one-time DuckDB-to-PostgreSQL migration:
 
 ```bash
 docker compose --profile migration run --rm duckdb-loader
@@ -143,7 +134,7 @@ raw
 marts
 ```
 
-Expected baseline table after migration:
+Confirm that this expected-result table is available after migration:
 
 ```text
 marts.pendo__product_adoption_summary_expected
@@ -155,17 +146,16 @@ Expected row count:
 24995
 ```
 
-## Step 3: Start Datus
+## Step 3: Start Datus and Configure the Datasource
 
-Start Datus from the same directory:
+Start Datus from the project directory:
 
 ```bash
 datus
 ```
 
-After Datus opens, configure the model in the Datus interface.
-
-Then configure the datasource with these values:
+After Datus opens, configure the model in the Datus interface. Then configure
+the datasource with these values:
 
 | Setting | Value |
 |---|---|
@@ -180,7 +170,8 @@ Then configure the datasource with these values:
 
 ## Step 4: Initialize Project Knowledge
 
-Use the `project-set-up` skill to initialize the project knowledge base.
+Use the `project-set-up` skill to reverse-initialize reusable project knowledge
+from `ref_sql/`.
 
 Enter this prompt in Datus:
 
@@ -193,12 +184,12 @@ Expected output documents:
 | Document | Purpose |
 |---|---|
 | `AGENTS.md` | Project overview, architecture, core asset index, and key decisions. |
-| `docs/business_knowledge.md` | Business rules, mandatory filtering, SCD semantics, daily metrics, first-time/return logic, and divide-by-zero guards. |
+| `docs/business_knowledge.md` | Business rules, metric definitions, filters, special handling, and reusable business logic. |
 | `docs/technical_standards.md` | SQL conventions for full reloads, schema bootstrap, timestamp parsing, naming, CTEs, window deduplication, and NULL handling. |
-| `docs/table_lineage.md` | DAG and field lineage across the retained staging, intermediate, and mart reference SQL. |
+| `docs/table_lineage.md` | DAG and field lineage across retained staging, intermediate, and mart reference SQL. |
 | `docs/ref_sql_inventory.md` | Per-file purpose, source tables, target tables, and SQL evidence. |
 
-Expected analysis scope:
+The initialization should analyze these reference SQL layers:
 
 | Layer | Files |
 |---|---|
@@ -206,18 +197,13 @@ Expected analysis scope:
 | Intermediate | `int_pendo__latest_feature`, `int_pendo__latest_page`, `int_pendo__feature_info`, `int_pendo__feature_daily_metrics` |
 | Marts | `feature`, `feature_event`, `feature_daily_metrics` |
 
-Important findings to expect:
+Before continuing, skim the generated docs. They are the project knowledge base
+that later planning and implementation steps should use.
 
-1. All reference SQL uses full reloads.
-2. The reference SQL uses DuckDB-style syntax.
-3. Latest-record logic uses `ROW_NUMBER()` over business keys ordered by `last_updated_at`.
-4. Event data is sanitized, while metadata text is mostly pass-through.
-5. Daily ratios are rounded to 3 decimals and divide-by-zero returns NULL.
-6. Previous-feature sequencing has no tie-breaker when timestamps are equal.
+## Step 5: Create the Implementation Plan
 
-## Step 5: Create the ETL Plan
-
-Use the `etl-plan` skill to create the implementation plan.
+Use the `etl-plan` skill to create a plan from the requirement document and the
+initialized project knowledge.
 
 Enter this prompt in Datus:
 
@@ -225,60 +211,66 @@ Enter this prompt in Datus:
 Please create an ETL plan using skill etl-plan
 ```
 
-Expected plan:
+The plan should define:
 
-| Item | Detail |
+| Area | Expected content |
 |---|---|
-| Plan file | `plans/build_product_adoption_summary.md` |
-| Goal | Build `marts.pendo__product_adoption_summary` in PostgreSQL and reconcile it against `marts.pendo__product_adoption_summary_expected`. |
-| Expected baseline | `marts.pendo__product_adoption_summary_expected` contains 24,995 rows. |
-| Out of scope | `pendo__product_adoption_analytics` is not built in this tutorial. |
+| Requirement boundary | Build `marts.pendo__product_adoption_summary`; do not build out-of-scope analytics tables. |
+| Source and target objects | Source tables, staging table, target mart, and expected-result table. |
+| Grain and metrics | `feature_id + account_id + app_id`, required output fields, adoption level rules, and feature health score logic. |
+| Implementation jobs | SQL files to create under `jobs/`. |
+| Validation approach | Row count, column comparison, numeric tolerance, and bidirectional difference checks. |
 
-Expected planned jobs:
+Expected plan file:
 
-| Job | Purpose |
-|---|---|
-| `jobs/stg_pendo__feature_event.sql` | Materialize `staging.stg_pendo__feature_event` from `raw.feature_event`. |
-| `jobs/pendo__product_adoption_summary.sql` | Build the product adoption summary mart. |
+```text
+plans/build_product_adoption_summary.md
+```
 
-After reviewing the plan, approve implementation with this input:
+Review the plan before allowing implementation. If the plan misses a requirement
+from `docs/pendo_product_adoption_summary_requirements.md`, ask Datus to revise
+the plan first.
+
+Approve implementation with:
 
 ```text
 Approve, start implementation the plan
 ```
 
-This approval step generates the SQL jobs.
-
 ## Step 6: Review the Generated SQL
 
-Use the `sql-review` skill before execution.
+After approval, Datus should generate SQL jobs such as:
 
-Enter this prompt in Datus:
+```text
+jobs/stg_pendo__feature_event.sql
+jobs/pendo__product_adoption_summary.sql
+```
+
+Use the `sql-review` skill before execution:
 
 ```text
 Please review the ETL SQL using skill sql-review
 ```
 
-Expected review result:
+Review focus:
 
-| Item | Expected Status |
+| Area | What to check |
 |---|---|
-| Modified file | `jobs/pendo__product_adoption_summary.sql` |
-| Main fix | Add explicit `CASE WHEN avg_events_per_session IS NULL THEN NULL` before `LEAST(...)`. |
-| Type check | `feature_health_score` remains `double precision`. |
-| Remaining low risks | Timestamp regex guard and missing inline explanation for no `WHERE` filter. |
+| Requirement coverage | Output fields, target grain, adoption level rules, and feature health score match the requirement. |
+| Source usage | SQL uses the intended source and staging tables. |
+| PostgreSQL compatibility | DuckDB-style reference patterns are adapted correctly. |
+| NULL and divide-by-zero handling | Ratio and score logic handles missing denominators explicitly. |
+| Type consistency | Numeric outputs, especially `feature_health_score`, keep the expected type. |
+
+If the review finds issues, update the SQL before execution.
 
 ## Step 7: Execute the SQL Jobs
 
-After review passes, execute the jobs with the `execute-job` skill.
-
-Enter this prompt in Datus:
+After the review passes, execute the jobs with the `execute-job` skill:
 
 ```text
 Please execute the SQL jobs using skill execute-job
 ```
-
-The `execute-job` skill may use project execution tools such as `gen_table` and `gen_job` when DDL or job generation is required.
 
 Expected generated tables:
 
@@ -287,29 +279,42 @@ staging.stg_pendo__feature_event
 marts.pendo__product_adoption_summary
 ```
 
-## Step 8: Compare Results
+## Step 8: Validate the Result
 
-After the jobs finish, compare the generated mart with the expected table using the `data-compare` skill.
-
-Enter this prompt in Datus:
+Compare the generated mart with the expected-result table using the
+`data-compare` skill:
 
 ```text
 Please compare the job result with the expected table using skill data-compare
 ```
 
-Expected comparison result:
+Validation should compare:
 
 ```text
-marts.pendo__product_adoption_summary reconciles perfectly with marts.pendo__product_adoption_summary_expected.
+marts.pendo__product_adoption_summary
+marts.pendo__product_adoption_summary_expected
 ```
 
-Successful validation means:
+Acceptance criteria:
 
 - 24,995 rows match.
-- All 13 columns match.
+- All 13 output columns match.
 - Numeric comparison passes at sub-1e-9 tolerance.
-- Bidirectional `EXCEPT` checks pass.
-- No SQL corrections are needed.
+- Bidirectional `EXCEPT` checks return no differences.
+- No further SQL correction is required.
+
+## Daily Startup
+
+After the environment has already been initialized, start PostgreSQL and Datus
+with:
+
+```bash
+cd product_adoption
+docker compose up -d postgres
+datus
+```
+
+The DuckDB file is only needed for initialization or a full rebuild.
 
 ## Skill Reference
 
@@ -321,20 +326,8 @@ The project includes Datus skills under:
 
 | Skill | Use |
 |---|---|
-| `project-set-up` | Initialize project knowledge from SQL, docs, lineage, and business rules. |
+| `project-set-up` | Initialize reusable project knowledge from SQL, docs, lineage, and business rules. |
 | `etl-plan` | Create and confirm an implementation plan before generating SQL. |
-| `sql-review` | Review generated ETL SQL against the approved plan. |
+| `sql-review` | Review generated ETL SQL against the approved plan and requirement. |
 | `execute-job` | Execute SQL jobs and DDL-oriented table/job operations. |
 | `data-compare` | Compare generated results against expected data and explain any differences. |
-
-## Daily Startup
-
-After the environment has already been initialized, start PostgreSQL and Datus with:
-
-```bash
-cd product_adoption
-docker compose up -d postgres
-datus
-```
-
-The DuckDB file is only needed for initialization or a full rebuild.

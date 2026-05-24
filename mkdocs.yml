@@ -8,7 +8,7 @@ nav:
     - Getting Started:
       - Quickstart: getting_started/Quickstart.md
       - Data Engineering Quickstart: getting_started/data_engineering_quickstart.md
-      - Data Development Demo: getting_started/data_development_demo.md
+      - Data Development Project Manual: getting_started/data_development_demo.md
       - Contextual Data Engineering: getting_started/contextual_data_engineering.md
       - Dashboard Copilot: getting_started/dashboard_copilot.md
     - CLI:
@@ -109,7 +109,7 @@ plugins:
             Getting Started: 入门指南
             Quickstart: 快速开始
             Data Engineering Quickstart: 数据工程快速开始
-            Data Development Demo: 数据开发 Demo
+            Data Development Project Manual: 数据开发项目操作手册
             Contextual Data Engineering: 上下文数据工程
             Dashboard Copilot: Dashboard Copilot
             CLI: 命令行

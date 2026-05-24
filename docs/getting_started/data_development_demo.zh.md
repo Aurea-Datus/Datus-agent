@@ -1,21 +1,20 @@
-# 数据开发 Demo
+# 数据开发项目操作手册
 
-本指南是一个使用 Datus skills 构建数据 mart 的动手 demo。它使用
-`product_adoption` 数据集，用 Pendo 功能使用事件模拟账号级产品采用度分析场景。demo
-包的 `docs/` 目录中包含目标 mart 的业务需求文档。
+本手册说明如何基于业务需求和 Reference SQL 初始化一个 Datus 数据开发项目，
+并完成开发、审查、执行和结果校验。示例包使用 `product_adoption` 数据集，
+用 Pendo 功能使用事件模拟账号级产品采用度分析场景。
 
-## 教程概览
+请把本文当作操作流程使用：下载示例包，保持项目目录结构不变，启动本地数据库，
+初始化项目知识，基于需求创建实施计划，然后使用包内 Datus skills 完成开发流程。
 
-本教程展示一条由 Datus skills 驱动的端到端数据开发工作流。你会从原始 Pendo 数据出发，基于 Reference SQL 初始化项目知识，创建 ETL 实施计划，审查生成的 SQL，执行任务，并将最终 mart 与可信 expected-result 表做对账。
+## 项目输入
 
-业务场景是产品采用度分析。产品、客户成功和增长团队需要理解客户账号如何在不同应用中使用产品功能。目标 mart 会在账号和应用粒度汇总功能使用情况，帮助下游用户识别试用、常规使用、高度采用，以及可能需要运营支持的低采用账号。
-
-包内包含两个工作流输入：
+示例包包含两个驱动工作流的项目输入：
 
 | 输入 | 作用 |
 |---|---|
-| `docs/pendo_product_adoption_summary_requirements.md` | 目标产品采用度 summary mart 的业务需求。 |
-| `ref_sql/` | 历史 SQL 参考，用于初始化项目知识、抽取血缘，并为实现决策提供依据。 |
+| `docs/pendo_product_adoption_summary_requirements.md` | 目标产品采用度 summary mart 的业务需求。它是范围、粒度、字段、指标、分层规则和验收标准的来源。 |
+| `ref_sql/` | 历史 SQL 参考。用于初始化项目知识、抽取血缘和可复用规则，并为实现决策提供依据。 |
 
 主要源数据是 Pendo 功能交互数据：
 
@@ -25,50 +24,28 @@
 | `raw.feature_history` | 功能元数据，用于 Reference SQL 和项目知识初始化。 |
 | `raw.page_history` | 页面元数据，用于 Reference SQL 和功能信息增强示例。 |
 
-本教程要实现的目标表是：
+需要开发的目标表是：
 
 ```text
 marts.pendo__product_adoption_summary
 ```
 
-目标 mart 的粒度是：
+目标表粒度是：
 
 ```text
 feature_id + account_id + app_id
 ```
 
-这个 mart 会计算 total users、sessions、events、minutes、active days、average usage per session、adoption level 和 feature health score 等采用度指标。
-
-expected-result 表已经存储在 DuckDB 中，并会在初始化时加载到 PostgreSQL：
+示例数据中已经包含 expected-result 表：
 
 ```text
 marts.pendo__product_adoption_summary_expected
 ```
 
-目标是生成 `marts.pendo__product_adoption_summary`，并让它与 expected 表完全一致。
+当 `marts.pendo__product_adoption_summary` 与 expected-result 表对账通过时，
+项目完成。
 
-工作流概览：
-
-| 步骤 | 操作 | 结果 |
-|---|---|---|
-| 1 | 启动 PostgreSQL | 本地数据库可用。 |
-| 2 | 加载 DuckDB 数据 | `raw` 源表和 `marts` expected 表被复制到 PostgreSQL。 |
-| 3 | 启动 Datus | Datus 使用已配置的模型和 datasource 就绪。 |
-| 4 | 运行 `project-set-up` | 从 Reference SQL 生成项目知识文档。 |
-| 5 | 运行 `etl-plan` | 创建并审批实施计划。 |
-| 6 | 运行 `sql-review` | 在执行前审查并修正生成的 SQL。 |
-| 7 | 运行 `execute-job` | 执行 staging 和 mart SQL 任务。 |
-| 8 | 运行 `data-compare` | 将最终 mart 与 expected 表做对账。 |
-
-完成后应满足：
-
-- `marts.pendo__product_adoption_summary` 存在于 PostgreSQL。
-- mart 有 24,995 行。
-- 13 个输出字段全部匹配 `marts.pendo__product_adoption_summary_expected`。
-- 数值比较在 sub-1e-9 tolerance 下通过。
-- 不需要继续修正 SQL。
-
-## 步骤 0：下载 demo 包
+## 示例包目录
 
 下载包：[product_adoption.zip](../assets/product_adoption.zip)。
 
@@ -104,11 +81,23 @@ product_adoption/
     skills/
 ```
 
-`docs/pendo_product_adoption_summary_requirements.md` 是计划阶段使用的业务需求文档。
+## 工作流概览
+
+| 步骤 | 操作 | 结果 |
+|---|---|---|
+| 1 | 启动 PostgreSQL | 本地数据库可用。 |
+| 2 | 加载 DuckDB 数据 | `raw` 源表和 `marts` expected-result 表复制到 PostgreSQL。 |
+| 3 | 启动 Datus | Datus 使用已配置的模型和 datasource 就绪。 |
+| 4 | 初始化项目知识 | `project-set-up` 从 `ref_sql/` 生成可复用项目文档。 |
+| 5 | 创建实施计划 | `etl-plan` 将需求和项目上下文转化为可审批计划。 |
+| 6 | 审批后实现 | 计划审批后，Datus 生成 SQL jobs。 |
+| 7 | 审查生成 SQL | `sql-review` 检查实现是否符合计划和需求。 |
+| 8 | 执行 jobs | `execute-job` 创建 staging 表和目标 mart。 |
+| 9 | 校验结果 | `data-compare` 将目标 mart 与 expected-result 表对账。 |
 
 ## 步骤 1：启动 PostgreSQL
 
-在 `product_adoption` 目录下启动 PostgreSQL：
+在解压后的项目目录中启动 PostgreSQL：
 
 ```bash
 cd product_adoption
@@ -126,9 +115,9 @@ PostgreSQL 连接信息：
 | Password | `pendo` |
 | Default schema | `raw` |
 
-## 步骤 2：将 DuckDB 数据加载到 PostgreSQL
+## 步骤 2：加载数据
 
-执行一次性迁移：
+执行一次性 DuckDB 到 PostgreSQL 的迁移：
 
 ```bash
 docker compose --profile migration run --rm duckdb-loader
@@ -141,7 +130,7 @@ raw
 marts
 ```
 
-迁移后 expected baseline 表是：
+迁移后确认 expected-result 表可用：
 
 ```text
 marts.pendo__product_adoption_summary_expected
@@ -153,17 +142,15 @@ marts.pendo__product_adoption_summary_expected
 24995
 ```
 
-## 步骤 3：启动 Datus
+## 步骤 3：启动 Datus 并配置 datasource
 
-在同一目录下启动 Datus：
+在项目目录下启动 Datus：
 
 ```bash
 datus
 ```
 
-Datus 打开后，先在界面中配置模型。
-
-然后使用下面的值配置 datasource：
+Datus 打开后，先在界面中配置模型。然后使用下面的值配置 datasource：
 
 | 设置 | 值 |
 |---|---|
@@ -178,7 +165,7 @@ Datus 打开后，先在界面中配置模型。
 
 ## 步骤 4：初始化项目知识
 
-使用 `project-set-up` skill 初始化项目知识库。
+使用 `project-set-up` skill 从 `ref_sql/` 反向初始化可复用项目知识。
 
 在 Datus 中输入：
 
@@ -191,12 +178,12 @@ Initialize this project using skill project-set-up
 | 文档 | 作用 |
 |---|---|
 | `AGENTS.md` | 项目概览、架构、核心资产索引和关键决策。 |
-| `docs/business_knowledge.md` | 业务规则、强制过滤、SCD 语义、日粒度指标、首次/回访逻辑和除零保护。 |
+| `docs/business_knowledge.md` | 业务规则、指标定义、过滤条件、特殊处理和可复用业务逻辑。 |
 | `docs/technical_standards.md` | full reload、schema bootstrap、时间戳解析、命名、CTE、窗口去重和 NULL 处理等 SQL 约定。 |
 | `docs/table_lineage.md` | retained staging、intermediate 和 mart Reference SQL 的 DAG 与字段血缘。 |
 | `docs/ref_sql_inventory.md` | 每个文件的用途、源表、目标表和 SQL 证据。 |
 
-预期分析范围：
+初始化时应分析这些 Reference SQL 层级：
 
 | 层级 | 文件 |
 |---|---|
@@ -204,18 +191,11 @@ Initialize this project using skill project-set-up
 | Intermediate | `int_pendo__latest_feature`, `int_pendo__latest_page`, `int_pendo__feature_info`, `int_pendo__feature_daily_metrics` |
 | Marts | `feature`, `feature_event`, `feature_daily_metrics` |
 
-需要关注的关键发现：
+继续之前，先快速浏览生成的文档。它们是后续计划和实现步骤要使用的项目知识库。
 
-1. 所有 Reference SQL 都使用 full reload。
-2. Reference SQL 使用 DuckDB 风格语法。
-3. 最新记录逻辑使用 `ROW_NUMBER()`，按业务键分组并按 `last_updated_at` 排序。
-4. 事件数据会被清洗，元数据文本基本透传。
-5. 日粒度 ratio 会 round 到 3 位小数，除零返回 NULL。
-6. 当时间戳相同时，previous-feature sequencing 没有额外 tie-breaker。
+## 步骤 5：创建实施计划
 
-## 步骤 5：创建 ETL 计划
-
-使用 `etl-plan` skill 创建实施计划。
+使用 `etl-plan` skill 基于需求文档和已初始化的项目知识创建计划。
 
 在 Datus 中输入：
 
@@ -223,60 +203,66 @@ Initialize this project using skill project-set-up
 Please create an ETL plan using skill etl-plan
 ```
 
-预期计划：
+计划应定义：
 
-| 项目 | 详情 |
+| 范围 | 预期内容 |
 |---|---|
-| Plan file | `plans/build_product_adoption_summary.md` |
-| Goal | 在 PostgreSQL 中构建 `marts.pendo__product_adoption_summary`，并与 `marts.pendo__product_adoption_summary_expected` 对账。 |
-| Expected baseline | `marts.pendo__product_adoption_summary_expected` 包含 24,995 行。 |
-| Out of scope | 本教程不构建 `pendo__product_adoption_analytics`。 |
+| 需求边界 | 构建 `marts.pendo__product_adoption_summary`；不构建范围外 analytics 表。 |
+| 源表和目标表 | 源表、staging 表、目标 mart 和 expected-result 表。 |
+| 粒度和指标 | `feature_id + account_id + app_id`、必需输出字段、adoption level 规则和 feature health score 逻辑。 |
+| 实现 jobs | 需要在 `jobs/` 下创建的 SQL 文件。 |
+| 校验方式 | 行数、字段对比、数值 tolerance 和双向差异检查。 |
 
-预期计划任务：
+预期计划文件：
 
-| 任务 | 作用 |
-|---|---|
-| `jobs/stg_pendo__feature_event.sql` | 从 `raw.feature_event` 物化 `staging.stg_pendo__feature_event`。 |
-| `jobs/pendo__product_adoption_summary.sql` | 构建产品采用度 summary mart。 |
+```text
+plans/build_product_adoption_summary.md
+```
 
-审查计划后，用下面的输入批准实施：
+审批实现前先审查计划。如果计划遗漏
+`docs/pendo_product_adoption_summary_requirements.md` 中的需求，先要求 Datus
+修订计划。
+
+用下面的输入批准实施：
 
 ```text
 Approve, start implementation the plan
 ```
 
-批准后会生成 SQL jobs。
-
 ## 步骤 6：审查生成的 SQL
 
-执行前使用 `sql-review` skill。
+审批后，Datus 应生成类似下面的 SQL jobs：
 
-在 Datus 中输入：
+```text
+jobs/stg_pendo__feature_event.sql
+jobs/pendo__product_adoption_summary.sql
+```
+
+执行前使用 `sql-review` skill：
 
 ```text
 Please review the ETL SQL using skill sql-review
 ```
 
-预期审查结果：
+审查重点：
 
-| 项目 | 预期状态 |
+| 范围 | 检查内容 |
 |---|---|
-| Modified file | `jobs/pendo__product_adoption_summary.sql` |
-| Main fix | 在 `LEAST(...)` 之前增加显式 `CASE WHEN avg_events_per_session IS NULL THEN NULL`。 |
-| Type check | `feature_health_score` 保持 `double precision`。 |
-| Remaining low risks | 时间戳 regex guard，以及没有为无 `WHERE` filter 写 inline explanation。 |
+| 需求覆盖 | 输出字段、目标粒度、adoption level 规则和 feature health score 是否符合需求。 |
+| 源表使用 | SQL 是否使用预期源表和 staging 表。 |
+| PostgreSQL 兼容性 | DuckDB 风格的参考 SQL 模式是否已正确适配。 |
+| NULL 和除零处理 | ratio 和 score 逻辑是否显式处理缺失分母。 |
+| 类型一致性 | 数值输出，尤其是 `feature_health_score`，是否保持预期类型。 |
+
+如果审查发现问题，先修正 SQL 再执行。
 
 ## 步骤 7：执行 SQL jobs
 
-审查通过后，使用 `execute-job` skill 执行任务。
-
-在 Datus 中输入：
+审查通过后，使用 `execute-job` skill 执行 jobs：
 
 ```text
 Please execute the SQL jobs using skill execute-job
 ```
-
-当需要 DDL 或 job generation 时，`execute-job` skill 可能会使用 `gen_table`、`gen_job` 等项目执行工具。
 
 预期生成的表：
 
@@ -285,45 +271,28 @@ staging.stg_pendo__feature_event
 marts.pendo__product_adoption_summary
 ```
 
-## 步骤 8：比较结果
+## 步骤 8：校验结果
 
-任务完成后，使用 `data-compare` skill 将生成的 mart 与 expected 表对比。
-
-在 Datus 中输入：
+使用 `data-compare` skill 将生成的 mart 与 expected-result 表对比：
 
 ```text
 Please compare the job result with the expected table using skill data-compare
 ```
 
-预期对账结果：
+校验对象：
 
 ```text
-marts.pendo__product_adoption_summary reconciles perfectly with marts.pendo__product_adoption_summary_expected.
+marts.pendo__product_adoption_summary
+marts.pendo__product_adoption_summary_expected
 ```
 
-成功验证意味着：
+验收标准：
 
 - 24,995 行匹配。
-- 13 个字段全部匹配。
+- 13 个输出字段全部匹配。
 - 数值比较在 sub-1e-9 tolerance 下通过。
-- 双向 `EXCEPT` 检查通过。
+- 双向 `EXCEPT` 检查没有差异。
 - 不需要继续修正 SQL。
-
-## Skill 参考
-
-项目包含的 Datus skills 位于：
-
-```text
-.datus/skills/
-```
-
-| Skill | 用途 |
-|---|---|
-| `project-set-up` | 从 SQL、文档、血缘和业务规则初始化项目知识。 |
-| `etl-plan` | 在生成 SQL 前创建并确认实施计划。 |
-| `sql-review` | 基于已批准的计划审查生成的 ETL SQL。 |
-| `execute-job` | 执行 SQL jobs，以及偏 DDL 的 table/job 操作。 |
-| `data-compare` | 将生成结果与 expected 数据对比，并解释差异。 |
 
 ## 日常启动
 
@@ -336,3 +305,19 @@ datus
 ```
 
 DuckDB 文件只在初始化或完整重建时需要。
+
+## Skill 参考
+
+项目包含的 Datus skills 位于：
+
+```text
+.datus/skills/
+```
+
+| Skill | 用途 |
+|---|---|
+| `project-set-up` | 从 SQL、文档、血缘和业务规则初始化可复用项目知识。 |
+| `etl-plan` | 在生成 SQL 前创建并确认实施计划。 |
+| `sql-review` | 基于已批准的计划和需求审查生成的 ETL SQL。 |
+| `execute-job` | 执行 SQL jobs，以及偏 DDL 的 table/job 操作。 |
+| `data-compare` | 将生成结果与 expected 数据对比，并解释差异。 |
